@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-import sys
+from enum import Enum
 import warnings
 from pydantic import BaseModel
+from pydantic import Field
 import typing 
 from fastapi import FastAPI
 from datetime import datetime
 
 from backend.crew import Backend
+from backend.src.backend.ArgType import requestArgumentClass, responseArgumentClass
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
@@ -15,6 +17,14 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 # Replace with inputs you want to test with, it will automatically
 # interpolate any tasks and agents information
 
+    
+class apiContextClass( BaseModel ):
+    request : requestArgumentClass
+    response : responseArgumentClass
+
+class finalArgumentClass( BaseModel ):
+    user_promopt: str
+    api_context: BaseModel = apiContextClass
 
 class apiDashArgument( BaseModel ):
     userQuery : str 
