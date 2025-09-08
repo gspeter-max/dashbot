@@ -1,10 +1,9 @@
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, Process, Task, LLM 
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
-# If you want to run a snippet of code before or after the crew starts,
-# you can use the @before_kickoff and @after_kickoff decorators
-# https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
+from crewai_tools import TavilySearchTool
+from backend.tools.custom_tool import WriteFileAndCreate, getHistoryOfUserRequests, getCurrentRequestData, TerminalExecution, isValiedForPloting, longThinkingTool
 
 @CrewBase
 class Backend():
@@ -20,19 +19,76 @@ class Backend():
     # If you would like to add tools to your agents, you can learn more about it here:
     # https://docs.crewai.com/concepts/agents#agent-tools
     @agent
-    def researcher(self) -> Agent:
+    def summaryManager(self) -> Agent:
         return Agent(
-            config=self.agents_config['researcher'], # type: ignore[index]
-            verbose=True
+            config=self.agents_config['summaryManager'], # type: ignore[index]
+            verbose=True,
+            llm = LLM( model = 'gemini/gemin-2.0-flash'),
+            tools = [ getCurrentRequestData(), getHistoryOfUserRequests() ],
+            max_rpm= 12,
+            cache = True,
+            verbose = True, 
+            max_iter = 3
+        )
+    
+    @agent
+    def explainMaster(self) -> Agent:
+        return Agent(
+            config=self.agents_config['explainMaster'], # type: ignore[index]
+            verbose=True,
+            llm = LLM(model = 'gemini/gemini-2.0-flash'),
+            tools = [ TavilySearchTool() , TerminalExecution(), getCurrentRequestData(), longThinkingTool() ],
+            max_rpm = 12,
+            cache = True,
+            verbose = True,
+            max_iter = 2
         )
 
     @agent
-    def reporting_analyst(self) -> Agent:
+    def debuggingMaster( self ) -> Agent:
         return Agent(
-            config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            verbose=True
+            config = self.agent_config['debuggingMaster'],
+            verbose = True,
+            llm = LLM(model = 'gemini/gemini-2.0-flash'),
+            tools = [TerminalExecution(), TavilySearchTool(), longThinkingTool(), WriteFileAndCreate() ],
+            max_rpm= 12,
+            cache = True,
+            max_iter = 2
+        )
+    @agent
+    def documentGeneraterMaster( self ) -> Agent:
+        return Agent(
+            config = self.agent_config['documentGeneraterMaster'],
+            verbose = True,
+            llm = LLM( model = 'gemini/gemini-2.0-flash'),
+            tools = [ WriteFileAndCreate(), TavilySearchTool() , getHistoryOfUserRequests(), getCurrentRequestData() ],
+            max_rpm = 14,
+            cache = True,
+            max_iter = 3 
         )
 
+    def testGeneraterKing( self ) -> Agent:
+        return Agent(
+            config = self.agent_config['testGeneraterKing'],
+            verbose = True,
+            llm = LLM(model = 'gemini/gemini-2.0-flash'),
+            tools = [ WriteFileAndCreate(), getCurrentRequestData(), TavilySearchTool(), longThinkingTool(), TerminalExecution() ],
+            max_rpm = 15,
+            cache = True,
+            max_iter = 3
+        )
+    
+    def responseVisualizer( self ) -> Agent:
+        return Agent(
+            config = self.agent_config['responseVisualizer'],
+            verbose = True,
+            llm = LLM(model = 'gemini/gemini-2.0-flash'),
+            tools = [ isValiedForPloting(), ],
+            max_rpm = 15,
+            cache = True,
+            max_iter = 3
+        )
+    
     # To learn more about structured task outputs,
     # task dependencies, and task callbacks, check out the documentation:
     # https://docs.crewai.com/concepts/tasks#overview-of-a-task
@@ -55,10 +111,12 @@ class Backend():
         # To learn how to add knowledge sources to your crew, check out the documentation:
         # https://docs.crewai.com/concepts/knowledge#what-is-knowledge
 
+        manager_llm = LLM( model = 'gemini/gemini-2.0-flash')
         return Crew(
             agents=self.agents, # Automatically created by the @agent decorator
             tasks=self.tasks, # Automatically created by the @task decorator
-            process=Process.sequential,
+            process=Process.hierarchical,
+            manager_llm = manager_llm,
             verbose=True,
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
         )

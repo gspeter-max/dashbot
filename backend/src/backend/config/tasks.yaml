@@ -1,17 +1,43 @@
+# This file configures the tasks for the Backend crew.
+# Each task has a description, an assigned agent, and an expected output.
+# Placeholders like {topic} can be used to inject dynamic data at runtime.
+
 research_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
+    Conduct comprehensive research on the user's query: '{topic}'.
+    Gather detailed information, analyze different perspectives, and
+    synthesize the findings. If the query involves code, execute it
+    to verify its behavior. The goal is to provide a complete and
+    accurate understanding of the subject.
+  agent: 'explainMaster'
   expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    A detailed, well-structured report summarizing the research findings
+    on '{topic}'. The report should include key facts, code examples ifclear
+    
+    applicable, and a conclusion based on the information gathered. It
+    must be clear, concise, and ready for use by other agents.
 
 reporting_task:
   description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    Review the research findings and analysis provided by the other agents.
+    Compile this information into a final, polished report. The report should
+    be well-organized, easy to read, and formatted in Markdown. It must
+    address the original user request comprehensively and accurately.
+  agent: 'documentGeneraterMaster'
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A final, comprehensive report in Markdown format. The report should be
+    saved as 'report.md' and contain all the necessary information, properly
+    formatted with headings, lists, and code blocks as needed.
+
+# You can add more tasks here for other agents as well. For example:
+#
+# debug_code_task:
+#  description: >
+#    Analyze the provided code snippet for bugs and errors.
+#    The code is: {code_snippet}. The error reported is: {error_message}.
+#    Execute the code, identify the root cause of the error, and provide
+#    a corrected version of the code with an explanation of the fix.
+#  agent: 'debuggingMaster'
+#  expected_output: >
+#    A JSON object containing two keys: 'corrected_code' with the fixed code,
+#    and 'explanation' detailing the bug and the changes made to fix it.

@@ -1,14 +1,13 @@
-#!/usr/bin/env python
-from enum import Enum
+
 import warnings
 from pydantic import BaseModel
-from pydantic import Field
 import typing 
+import uvicorn
 from fastapi import FastAPI
 from datetime import datetime
 
 from backend.crew import Backend
-from backend.src.backend.ArgType import requestArgumentClass, responseArgumentClass
+from backend.ArgType import requestArgumentClass, responseArgumentClass
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
@@ -23,22 +22,12 @@ class apiContextClass( BaseModel ):
     response : responseArgumentClass
 
 class finalArgumentClass( BaseModel ):
-    user_promopt: str
-    api_context: BaseModel = apiContextClass
-
-class apiDashArgument( BaseModel ):
-    userQuery : str 
-    headers : typing.Optional[ typing.Dict[str, str ]]  
-    requests_body : typing.Optional[ typing.Dict[str, str ]]
-    method : str 
-    url : str 
-    response_body : typing.Optional[typing.Dict[str,str]]
-    status_code: int
-    time_taken_ms: int
+    user_prompt: str
+    api_context: apiContextClass
 
 app = FastAPI() 
 
-def _start_crewai(input_for_crewai_agents : typing.Dict[str, str]):
+async def _start_crewai(input_for_crewai_agents : typing.Dict[str, str]):
     inputs = {
         'topic': 'ai agent for ApiDash',
         'current_year': str(datetime.now().year),
@@ -49,21 +38,74 @@ def _start_crewai(input_for_crewai_agents : typing.Dict[str, str]):
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 
-    
+
+getHistoryData = {} 
+current_user_data = {}
+i = 0 
+
+@app.get('/v1/getCurrentUserData')
+async def getCurrentMemory(self):
+    return {
+        'status': 'OK',
+        'response_data': current_user_data
+    }
+
+@app.get('/v1/getHistoryOfUsers')
+async def getHistoryOfUsers(self):
+    return {
+        "status" : "OK",
+        "response_data" : getHistoryData
+    }
 
 @app.post('/v1/ask')
-def userQuery(query: apiDashArgument): 
+async def userQuery(query: finalArgumentClass ):
+    global current_user_data 
+    global getHistoryData 
     print("✅ --- DATA SUCCESSFULLY RECEIVED FROM FLUTTER! --- ✅")
     
     # Here is the key part: We call our other function and PASS the `query`
     # object to it. The `query` object is "stored" in memory for this to happen.
-    query = {
+    current_user_data = query 
+    global i 
+    i += 1 
+
+    getHistoryData[f'requestNumber_{i}'] = query
+    if len(getHistoryData.keys()) > 3:
+        getHistoryData.pop(getHistoryData.keys()[0]) 
+
+    crewai_input  = {
         'topic': 'ai agent for ApiDash',
         'current_year': str(datetime.now().year),
-        'input_for_crewai_agents' : query
+        'input_for_crewai_agents' : {
+            "user_prompt": query.user_prompt,
+            "api_context": {
+                "requests" : {
+                    "method" : query.api_context.request.method,
+                    "url": query.api_context.request.url,
+                    "headers": query.api_context.request.headers,
+                    "params": query.api_context.request.params,
+                    "authModel": query.api_context.request.authModel,
+                    "isHeaderEnabledList" : query.api_context.request.isHeaderEnabledList,
+                    "isParamEnabledList" : query.api_context.request.isParamEnabledList,
+                    "bodyContentType" : query.api_context.request.bodyContentType,
+                    "body" : query.api_context.request.body,
+                    "formData" : query.api_context.request.formData
+                },
+                "response" : {
+                    "statusCode": query.api_context.response.statusCode,
+                    "headers": query.api_context.response.headers,
+                    "requestHeaders": query.api_context.response.requestHeaders,
+                    "body": query.api_context.response.body,
+                    "formattedBody": query.api_context.response.formattedBody,
+                    "bodyBytes": query.api_context.response.bodyBytes,
+                    "time" : query.api_context.response.time,
+                    "seeOutput": query.api_context.response.sseOutput
+                }
+            }
         }
-    
-    final_answer = _start_crewai(input_for_crewai_agents = query)
+    }
+
+    final_answer = await _start_crewai(input_for_crewai_agents = crewai_input)
     
     print("✅ --- PREPARING TO SEND RESPONSE BACK TO FLUTTER --- ✅")
     print(f"✅ --- arguemnt recived > {query}")
